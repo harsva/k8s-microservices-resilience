@@ -34,7 +34,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: worker
-          image: ghcr.io/harsva/resilience-worker:latest
+          image: ghcr.io/iharshaavardhan/resilience-worker:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

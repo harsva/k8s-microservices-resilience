@@ -50,8 +50,8 @@ docs/ROLLOUT.md           rollout / rollback runbook
 
 ```bash
 # Build and push the worker image (CI does this on release).
-docker build -t ghcr.io/harsva/resilience-worker:v1.0.0 app/
-docker push ghcr.io/harsva/resilience-worker:v1.0.0
+docker build -t ghcr.io/iharshaavardhan/resilience-worker:v1.0.0 app/
+docker push ghcr.io/iharshaavardhan/resilience-worker:v1.0.0
 
 # Deploy the prod overlay.
 kubectl apply -k k8s/overlays/prod

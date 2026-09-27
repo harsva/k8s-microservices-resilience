@@ -8,7 +8,7 @@ resources:
 
 # Pin the worker image to an immutable tag in prod (set by CI on release).
 images:
-  - name: ghcr.io/harsva/resilience-worker
+  - name: ghcr.io/iharshaavardhan/resilience-worker
     newTag: v1.0.0
 
 # Prod runs a higher baseline replica count.

@@ -3,7 +3,7 @@
 ## Deploy a new version
 
 ```bash
-# CI builds ghcr.io/harsva/resilience-worker:<new-tag> and updates the overlay.
+# CI builds ghcr.io/iharshaavardhan/resilience-worker:<new-tag> and updates the overlay.
 kubectl apply -k k8s/overlays/prod
 kubectl -n resilience-demo rollout status deployment/worker --timeout=120s
 ```
