@@ -1,0 +1,55 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: python lint + compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+          pip install -r app/requirements.txt
+      - name: Ruff lint
+        run: ruff check app/
+      - name: Compile check
+        run: python -m py_compile app/worker.py
+
+  image:
+    name: docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t resilience-worker:ci app/
+
+  manifests:
+    name: kustomize build + kubeconform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -fsSL -o kc.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf kc.tar.gz kubeconform
+          sudo mv kubeconform /usr/local/bin/
+      - name: Validate base + prod overlay
+        run: |
+          for d in k8s/base k8s/overlays/prod; do
+            echo "== $d =="
+            kubectl kustomize "$d" | kubeconform -strict -summary -schema-location default
+          done

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: resilience-demo
+  labels:
+    app.kubernetes.io/name: worker
+spec:
+  replicas: 3
+  # Rolling update: never drop below capacity; add at most one surge pod.
+  # This, plus readiness gating, gives zero-downtime deploys and easy rollback
+  # via `kubectl rollout undo`.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: worker
+      annotations:
+        prometheus.io/scrape: "false"
+    spec:
+      # Give in-flight work time to drain on SIGTERM before SIGKILL.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/harsva/resilience-worker:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: REDIS_URL
+              value: "redis://redis.resilience-demo.svc:6379/0"
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          # Startup probe gates the others until warm-up finishes (up to 30s).
+          startupProbe:
+            httpGet:
+              path: /startupz
+              port: http
+            failureThreshold: 15
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          # preStop: allow the endpoint to be removed from Service before the
+          # app receives SIGTERM, avoiding requests routed to a terminating pod.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: resilience-demo
+  labels:
+    app.kubernetes.io/name: worker
+spec:
+  selector:
+    app.kubernetes.io/name: worker
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

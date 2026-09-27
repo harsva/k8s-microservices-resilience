@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: resilience-demo
+
+resources:
+  - ../../base
+
+# Pin the worker image to an immutable tag in prod (set by CI on release).
+images:
+  - name: ghcr.io/harsva/resilience-worker
+    newTag: v1.0.0
+
+# Prod runs a higher baseline replica count.
+patches:
+  - target:
+      kind: Deployment
+      name: worker
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 5
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: worker
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 5
+      - op: replace
+        path: /spec/maxReplicas
+        value: 20
